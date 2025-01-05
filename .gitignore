@@ -1,3 +1,5 @@
 *.pyc
 .env
 test.py
+create_tables.sql
+generate_sql.py
