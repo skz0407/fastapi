@@ -2,8 +2,17 @@ from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
-from database import get_user_from_db, update_user_in_db, get_db
-from models import User
+from typing import List
+from database import (
+    get_db,
+    get_user_from_db,
+    update_user_in_db,
+    get_user_events,
+    create_event_for_user,
+    update_event_for_user,
+    delete_event_for_user
+)
+from models import User, Event
 
 app = FastAPI()
 
@@ -37,6 +46,22 @@ class UserUpdate(BaseModel):
 
 class GoogleIdRequest(BaseModel):
     google_id: str
+
+# Event Pydantic Models
+class EventBase(BaseModel):
+    title: str
+    start_time: str  # ISO8601形式で日時
+    end_time: str  # ISO8601形式で日時
+
+class EventCreate(EventBase):
+    user_id: str  # UUID形式
+
+class EventUpdate(EventBase):
+    pass
+
+class EventResponse(EventBase):
+    id: str
+
 
 @app.get("/users/{user_id}", response_model=GetUser)
 def get_user(user_id: str, db: Session = Depends(get_db)):
@@ -118,7 +143,50 @@ def get_user_id_by_google_id(request: GoogleIdRequest, db: Session = Depends(get
         raise HTTPException(status_code=404, detail="User not found")
     return {"id": user.id}
 
+# ユーザーのイベント一覧を取得
+@app.get("/users/{user_id}/events", response_model=List[EventResponse])
+def get_events(user_id: str, db: Session = Depends(get_db)):
+    events = get_user_events(user_id, db)
+    return [
+        EventResponse(
+            id=str(event.id),
+            title=event.title,
+            start_time=event.start_time.isoformat(),
+            end_time=event.end_time.isoformat(),
+        )
+        for event in events
+    ]
 
-@app.get("/")
-async def root():
-    return {"message": "Hello World From Fast API!"}
+# イベントを作成
+@app.post("/users/{user_id}/events", response_model=EventResponse)
+def create_event(user_id: str, event_data: EventCreate, db: Session = Depends(get_db)):
+    event_data_dict = event_data.dict()
+    event_data_dict["user_id"] = user_id
+    new_event = create_event_for_user(event_data_dict, db)
+    return EventResponse(
+        id=str(new_event.id),
+        title=new_event.title,
+        start_time=new_event.start_time.isoformat(),
+        end_time=new_event.end_time.isoformat(),
+    )
+
+# イベントを更新
+@app.put("/users/{user_id}/events/{event_id}", response_model=EventResponse)
+def update_event(user_id: str, event_id: str, event_data: EventUpdate, db: Session = Depends(get_db)):
+    updated_event = update_event_for_user(event_id, user_id, event_data.dict(), db)
+    if not updated_event:
+        raise HTTPException(status_code=404, detail="Event not found")
+    return EventResponse(
+        id=str(updated_event.id),
+        title=updated_event.title,
+        start_time=updated_event.start_time.isoformat(),
+        end_time=updated_event.end_time.isoformat(),
+    )
+
+# イベントを削除
+@app.delete("/users/{user_id}/events/{event_id}")
+def delete_event(user_id: str, event_id: str, db: Session = Depends(get_db)):
+    event = delete_event_for_user(event_id, user_id, db)
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+    return {"message": "Event deleted successfully"}
