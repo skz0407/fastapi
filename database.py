@@ -1,10 +1,13 @@
+import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from models import User
+from dotenv import load_dotenv
 
+load_dotenv()
 
 # 接続先DBの設定
-DATABASE = 'postgresql+psycopg://user:postgres@localhost:5432/postgres'
+DATABASE = os.getenv("DATABASE_URL")
 
 # Engine の作成
 Engine = create_engine(
