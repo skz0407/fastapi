@@ -1,10 +1,13 @@
-from sqlalchemy import Column, String, TIMESTAMP, Boolean, ForeignKey, UUID, Text
-from sqlalchemy.sql import func
 import uuid
+
+from sqlalchemy import TIMESTAMP, UUID, Column, ForeignKey, String
 from sqlalchemy.orm import DeclarativeBase, relationship
+from sqlalchemy.sql import func
+
 
 class Base(DeclarativeBase):
     pass
+
 
 class User(Base):
     __tablename__ = "users"
@@ -18,6 +21,7 @@ class User(Base):
     # Relationship for accessing user's events
     events = relationship("Event", back_populates="user", cascade="all, delete-orphan")
 
+
 class Event(Base):
     __tablename__ = "events"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -28,5 +32,3 @@ class Event(Base):
 
     # Relationship back to user
     user = relationship("User", back_populates="events")
-
-

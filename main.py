@@ -1,18 +1,20 @@
-from fastapi import FastAPI, HTTPException, Depends
+from typing import List
+
+from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
-from typing import List
+
 from database import (
-    get_db,
-    get_user_from_db,
-    update_user_in_db,
-    get_user_events,
     create_event_for_user,
+    delete_event_for_user,
+    get_db,
+    get_user_events,
+    get_user_from_db,
     update_event_for_user,
-    delete_event_for_user
+    update_user_in_db,
 )
-from models import User, Event
+from models import User
 
 app = FastAPI()
 
@@ -24,11 +26,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 class UserCreate(BaseModel):
     google_id: str
     email: str
     username: str
     avatar_url: str
+
 
 class GetUser(BaseModel):
     id: str  # UUIDを文字列として返す
@@ -39,13 +43,16 @@ class GetUser(BaseModel):
     created_at: str
     updated_at: str
 
+
 class UserUpdate(BaseModel):
     username: str
     email: str
     avatar_url: str
 
+
 class GoogleIdRequest(BaseModel):
     google_id: str
+
 
 # Event Pydantic Models
 class EventBase(BaseModel):
@@ -53,11 +60,14 @@ class EventBase(BaseModel):
     start_time: str  # ISO8601形式で日時
     end_time: str  # ISO8601形式で日時
 
+
 class EventCreate(EventBase):
     user_id: str  # UUID形式
 
+
 class EventUpdate(EventBase):
     pass
+
 
 class EventResponse(EventBase):
     id: str
@@ -75,12 +85,13 @@ def get_user(user_id: str, db: Session = Depends(get_db)):
         "email": user.email,
         "avatar_url": user.avatar_url,
         "created_at": user.created_at.isoformat(),
-        "updated_at": user.updated_at.isoformat()
+        "updated_at": user.updated_at.isoformat(),
     }
+
 
 # PUT: ユーザー情報更新
 @app.put("/users/{user_id}")
-def update_user(user_id: str, user_data: UserUpdate,  db: Session = Depends(get_db)):
+def update_user(user_id: str, user_data: UserUpdate, db: Session = Depends(get_db)):
     updated_user = update_user_in_db(user_id, user_data.dict(), db)
     if not updated_user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -92,6 +103,7 @@ def update_user(user_id: str, user_data: UserUpdate,  db: Session = Depends(get_
         "created_at": updated_user.created_at.isoformat(),
         "updated_at": updated_user.updated_at.isoformat(),
     }
+
 
 @app.get("/users")
 def get_all_users(db: Session = Depends(get_db)):
@@ -113,12 +125,11 @@ def get_all_users(db: Session = Depends(get_db)):
     ]
 
 
-
 @app.post("/auth/google")
 def create_or_get_user(user_data: UserCreate, db: Session = Depends(get_db)):
     # ログ出力
     print("受信したデータ:", user_data.dict())
-    
+
     user = db.query(User).filter(User.google_id == user_data.google_id).first()
     if user:
         print("既存のユーザーが見つかりました:", user)
@@ -136,12 +147,14 @@ def create_or_get_user(user_data: UserCreate, db: Session = Depends(get_db)):
     print("新しいユーザーが作成されました:", new_user)
     return {"message": "User created successfully", "user": user_data.dict()}
 
+
 @app.post("/auth/google-id")
 def get_user_id_by_google_id(request: GoogleIdRequest, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.google_id == request.google_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     return {"id": user.id}
+
 
 # ユーザーのイベント一覧を取得
 @app.get("/users/{user_id}/events", response_model=List[EventResponse])
@@ -157,6 +170,7 @@ def get_events(user_id: str, db: Session = Depends(get_db)):
         for event in events
     ]
 
+
 # イベントを作成
 @app.post("/users/{user_id}/events", response_model=EventResponse)
 def create_event(user_id: str, event_data: EventCreate, db: Session = Depends(get_db)):
@@ -170,6 +184,7 @@ def create_event(user_id: str, event_data: EventCreate, db: Session = Depends(ge
         end_time=new_event.end_time.isoformat(),
     )
 
+
 # イベントを更新
 @app.put("/users/{user_id}/events/{event_id}", response_model=EventResponse)
 def update_event(user_id: str, event_id: str, event_data: EventUpdate, db: Session = Depends(get_db)):
@@ -182,6 +197,7 @@ def update_event(user_id: str, event_id: str, event_data: EventUpdate, db: Sessi
         start_time=updated_event.start_time.isoformat(),
         end_time=updated_event.end_time.isoformat(),
     )
+
 
 # イベントを削除
 @app.delete("/users/{user_id}/events/{event_id}")

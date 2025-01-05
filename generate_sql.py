@@ -1,9 +1,13 @@
+import os
+
 from sqlalchemy import create_engine
 from sqlalchemy.schema import CreateTable
+
 from models import Base
 
-# データベースエンジンの作成（ダミー接続）
-engine = create_engine("postgresql+psycopg2://user:password@localhost:5432/postgres")
+# データベースエンジンの作成
+DATABASE = os.getenv("DATABASE_URL")
+engine = create_engine(DATABASE)
 
 # CREATE TABLE ステートメントを生成してファイルに保存
 with open("create_tables.sql", "w") as f:
