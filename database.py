@@ -1,7 +1,7 @@
 import os
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, select, join
 from sqlalchemy.orm import sessionmaker
-from models import User, Event
+from models import User, Event, Thread, Comment
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -78,3 +78,67 @@ def delete_event_for_user(event_id: str, user_id: str, db):
         db.delete(event)
         db.commit()
     return event
+
+
+# 新しいスレッドを作成
+def create_thread(thread_data: dict, db):
+    thread = Thread(**thread_data)
+    db.add(thread)
+    db.commit()
+    db.refresh(thread)
+    return thread
+
+# スレッドを取得
+def get_thread(thread_id: str, db):
+    return db.query(Thread).filter(Thread.id == thread_id).first()
+
+
+def get_threads_by_user(user_id: str, db):
+    """
+    ユーザーが作成したスレッドまたはコメントしたスレッドを取得
+    """
+    # ユーザーが作成したスレッド
+    created_threads = db.query(Thread).filter(Thread.user_id == user_id).all()
+
+    # ユーザーがコメントしたスレッド
+    commented_threads = (
+        db.query(Thread)
+        .join(Comment, Thread.id == Comment.thread_id)
+        .filter(Comment.user_id == user_id)
+        .all()
+    )
+
+    # 重複を排除して返す
+    all_threads = {thread.id: thread for thread in created_threads + commented_threads}
+    return list(all_threads.values())
+
+# 全スレッドを取得
+def get_threads_with_usernames(db):
+    stmt = select(
+        Thread.id,
+        Thread.title,
+        Thread.content,
+        Thread.user_id,
+        Thread.created_at,
+        Thread.updated_at,
+        User.username  # JOINでusernameを取得
+    ).join(User, Thread.user_id == User.id)
+    return db.execute(stmt).fetchall()
+
+# 新しいコメントを作成
+def create_comment(comment_data: dict, db):
+    comment = Comment(**comment_data)
+    db.add(comment)
+    db.commit()
+    db.refresh(comment)
+    return comment
+
+# コメントを取得
+def get_comments_with_usernames(thread_id: str, db):
+    stmt = select(
+        Comment.id,
+        Comment.content,
+        Comment.created_at,
+        User.username  # JOINでusernameを取得
+    ).join(User, Comment.user_id == User.id).filter(Comment.thread_id == thread_id)
+    return db.execute(stmt).fetchall()

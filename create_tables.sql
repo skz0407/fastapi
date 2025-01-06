@@ -26,3 +26,32 @@ CREATE TABLE events (
 
 ;
 
+
+CREATE TABLE threads (
+	id UUID NOT NULL, 
+	user_id UUID NOT NULL, 
+	title VARCHAR(50) NOT NULL, 
+	content VARCHAR(1000) NOT NULL, 
+	created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT now(), 
+	updated_at TIMESTAMP WITHOUT TIME ZONE DEFAULT now(), 
+	PRIMARY KEY (id), 
+	FOREIGN KEY(user_id) REFERENCES users (id) ON DELETE CASCADE
+)
+
+;
+
+
+CREATE TABLE comments (
+	id UUID NOT NULL, 
+	thread_id UUID NOT NULL, 
+	user_id UUID NOT NULL, 
+	content VARCHAR(500) NOT NULL, 
+	created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT now(), 
+	updated_at TIMESTAMP WITHOUT TIME ZONE DEFAULT now(), 
+	PRIMARY KEY (id), 
+	FOREIGN KEY(thread_id) REFERENCES threads (id) ON DELETE CASCADE, 
+	FOREIGN KEY(user_id) REFERENCES users (id) ON DELETE CASCADE
+)
+
+;
+
